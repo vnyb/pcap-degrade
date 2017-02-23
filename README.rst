@@ -13,7 +13,7 @@ Packet loss is performed randomly using a fixed probability (default: 1%)
 Delay is performed using a gamma distribution (default: mean delay = 100 ms,
 max delay = 500 ms) as described in the plot below.
 
-.. image:: delay-distribution.pcap
+.. image:: delay-distribution.png
 
 Usage
 -----
