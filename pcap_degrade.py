@@ -17,17 +17,40 @@ from scapy.all import (
 )
 
 DEFAULT_PACKET_LOSS = 0.01
+DEFAULT_DELAY_MEAN_MS = 100
+DEFAULT_DELAY_MAX_MS = 500
 
-def degrade(in_file, out_file, packet_loss=DEFAULT_PACKET_LOSS):
+def variate(mean_ms, delay_max_ms):
+    """
+    Generate delay following a gamma distribution.
+    """
+    while True:
+        x = mean_ms * random.gammavariate(2.0, 0.5)
+        if x <= delay_max_ms:
+            return x
+
+def degrade(in_file, out_file,
+            packet_loss=DEFAULT_PACKET_LOSS,
+            delay_mean_ms=DEFAULT_DELAY_MEAN_MS,
+            delay_max_ms=DEFAULT_DELAY_MAX_MS):
     """Perform degradation"""
 
     out_list = []
+    previous_time = 0.0
 
     for pkt in rdpcap(in_file):
+        # Packet loss
         if random.random() < packet_loss:
             continue # Discard packet
 
+        # Delay
+        pkt.time += variate(delay_mean_ms, delay_max_ms) / 1000
+        if pkt.time < previous_time:
+            # Avoid overlap
+            pkt.time = previous_time
+
         out_list.append(pkt)
+        previous_time = pkt.time
 
     wrpcap(out_file, out_list)
 
@@ -64,10 +87,28 @@ def main():
         dest='packet_loss',
         help='packet lot rate',
     )
+    parser.add_argument(
+        '-m', '--delay-mean',
+        type=float,
+        default=DEFAULT_DELAY_MEAN_MS,
+        dest='delay_mean_ms',
+        help='mean delay (milliseconds)',
+    )
+    parser.add_argument(
+        '-M', '--delay-max',
+        type=float,
+        default=DEFAULT_DELAY_MAX_MS,
+        dest='delay_max_ms',
+        help='mean delay (milliseconds)',
+    )
     args = parser.parse_args()
 
     try:
-        degrade(args.input_file, args.output_file, args.packet_loss)
+        degrade(
+            args.input_file, args.output_file,
+            args.packet_loss,
+            args.delay_mean_ms, args.delay_max_ms,
+        )
     except OSError as exn:
         sys.exit(str(exn))
 
